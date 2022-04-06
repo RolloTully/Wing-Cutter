@@ -1,1 +1,16 @@
+This software is currently only designed to cut airfoils(but can be bodged to cut other profiles if needed)
+
+The software requires(The bare minimum)
+-The .dat or .txt file containing containing your continuious, normalised airfoil profiles 
+-The root and tip chord lengths.
+-The Root and tip twists(if present, in degrees)
+-The wing section span(max 600mm, 700mm if we push it, this is an exception).
+
+Optionaly:
+-Chord twist position, this is the point about which the airfoil profile is rotated expresed as a percentage of the foil chord
+
+Additonal info
+currently(this will be fixed soon) both airfoil but have the same number of data points if you are using different airfoils at the root and tip.
+the airfoil data must be continuious(the points must be expressed sequentialy) and normalised(values between 1 and 0), these will also be addressed soon.
+
 if you have questions please email, HotWireTroubles@gmail.com
