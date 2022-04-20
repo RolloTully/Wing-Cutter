@@ -1,0 +1,149 @@
+self.root_line_params = []
+    self.tip_line_params = []
+    self.updated_root=[]
+    self.updated_tip=[]
+    for self.index in range(0,len(self.root_dat)-1):#Known Good,Tested
+        print(f"Magic index {self.root_dat.shape}{self.tip_dat.shape} {self.index}")
+        self.root_path_d = self.root_dat[self.index]-self.root_dat[self.index+1]
+        self.tip_path_d = self.tip_dat[self.index]-self.tip_dat[self.index+1]
+        self.root_sl= hypot(self.root_path_d[0],self.root_path_d[1])
+        self.tip_sl= hypot(self.tip_path_d[0],self.tip_path_d[1])
+        self.tip_frp = (self.root_sl/self.tip_sl)*self.feed_rate
+        self.root_frp = self.feed_rate
+        self.tip_rct = self.k()*(1/self.tip_frp**2)
+        self.root_rct = self.k()*(1/self.root_frp**2)
+        self.root_yi = self.y_i(self.der(self.root_dat[self.index],self.root_dat[self.index+1]),self.root_dat[self.index])
+        self.tip_yi = self.y_i(self.der(self.tip_dat[self.index],self.tip_dat[self.index+1]),self.tip_dat[self.index])
+        self.root_der = self.der(self.root_dat[self.index],self.root_dat[self.index+1])
+        self.tip_der = self.der(self.tip_dat[self.index],self.tip_dat[self.index+1] )
+        self.root_dir = sign(self.root_dat[self.index+1,0]-self.root_dat[self.index,0])
+        self.tip_dir = sign(self.tip_dat[self.index+1,0]-self.tip_dat[self.index,0])
+        self.corrected_root_line_yi = self.correct_c(self.root_der,self.root_rct,self.root_yi,self.root_dir)
+        self.corrected_tip_line_yi = self.correct_c(self.tip_der,self.tip_rct,self.tip_yi,self.tip_dir)
+        self.root_line_params.append([self.root_der,self.corrected_root_line_yi,self.root_dir])#Derivative, y_offset, direction
+        self.tip_line_params.append([self.tip_der,self.corrected_tip_line_yi,self.tip_dir])
+    self.root_line_params = array(self.root_line_params)
+    self.tip_line_params = array(self.tip_line_params)
+    self.new_root = []
+    self.new_tip = []
+    for self.index in range(0,len(self.root_line_params)):
+        self.der1 = self.root_line_params[self.index-1,0]
+        self.der2 = self.root_line_params[self.index,0]
+        self.yi1 = self.root_line_params[self.index-1,1]
+        self.yi2 = self.root_line_params[self.index,1]
+        self.root_x = (self.yi2-self.yi1)/(self.der1-self.der2)
+        self.new_root_y = self.der1*self.root_x+self.yi1
+        self.new_root.append([self.root_x,self.new_root_y])
+        self.der1 = self.tip_line_params[self.index-1,0]
+        self.der2 = self.tip_line_params[self.index,0]
+        self.yi1 = self.tip_line_params[self.index-1,1]
+        self.yi2 = self.tip_line_params[self.index,1]
+        self.tip_x = (self.yi2-self.yi1)/(self.der1-self.der2)
+        self.new_tip_y = self.der1*self.tip_x+self.yi1
+        self.new_tip.append([self.tip_x,self.new_tip_y])
+    self.new_root = array(self.new_root)
+    self.new_tip = array(self.new_tip)
+    self.x_max = max(self.new_root[:,0])
+    self.y_max = max(self.new_root[:,1])
+    self.new_root = self.new_root - array([self.x_max,self.y_max])
+    self.new_tip = self.new_tip - array([self.x_max,self.y_max])
+
+
+
+
+
+
+
+
+    self.root_dat = array(root)
+        self.tip_dat = array(tip)
+        self.feed_rate = feed_rate
+        self.cut_radius = cut_radius
+        self.root_line_params = []
+        self.tip_line_params = []
+        self.updated_root=[]
+        self.updated_tip=[]
+        for self.i in range(0,len(self.root_dat)-1):
+            '''
+            if self.i+1 < len(self.root_dat)-1:
+                self.index = self.i
+            else:
+                self.index = self.i-self.root_dat.shape[0]
+            '''
+            self.index = self.i
+            print(self.i,self.index,len(self.root_dat),len(self.tip_dat))
+            '''Computing Correct Cutter feed rate'''
+            self.root_dif = self.root_dat[self.index+1]-self.root_dat[self.index]
+            self.tip_dif = self.tip_dat[self.index+1]-self.tip_dat[self.index]
+            self.root_section_scan_length = hypot(self.root_dif[0],self.root_dif[1])
+            self.tip_section_scan_length = hypot(self.tip_dif[0],self.tip_dif[1])
+            self.root_feed_rate = self.feed_rate
+            self.tip_feed_rate = self.feed_rate*(self.tip_section_scan_length/self.root_section_scan_length)
+            self.feed_rate_factor = 0
+            if self.root_feed_rate < self.tip_feed_rate:
+                self.feed_rate_factor = self.root_feed_rate/self.tip_feed_rate
+            elif self.tip_feed_rate < self.root_feed_rate:
+                self.feed_rate_factor = self.tip_feed_rate/self.root_feed_rate
+            else:
+                self.feed_rate_factor = 1
+            self.tip_feed_rate = self.tip_feed_rate*self.feed_rate_factor
+            self.root_feed_rate = self.root_feed_rate*self.feed_rate_factor
+            '''Corrects cutter cut radius'''
+            self.root_cutting_radius = self.k()/sqrt(self.root_feed_rate)
+            self.tip_cutting_radius = self.k()/sqrt(self.tip_feed_rate)
+            '''Compute line parameters'''
+            self.post_root_derivative = self.der(self.root_dat[self.index+1],self.root_dat[self.index])
+            self.post_tip_derivative = self.der(self.tip_dat[self.index+1],self.tip_dat[self.index])
+            self.pre_root_derivative = self.der(self.root_dat[self.index],self.root_dat[self.index-1])
+            self.pre_tip_derivative = self.der(self.tip_dat[self.index],self.tip_dat[self.index-1])
+            self.post_root_intercept = self.y_i(self.post_root_derivative,self.root_dat[self.index])
+            self.post_tip_intercept = self.y_i(self.post_tip_derivative,self.tip_dat[self.index])
+            self.pre_root_intercept = self.y_i(self.pre_root_derivative,self.root_dat[self.index-1])
+            self.pre_tip_intercept = self.y_i(self.pre_tip_derivative,self.tip_dat[self.index-1])
+            self.root_direction = sign(self.root_dat[self.index+1,0]-self.root_dat[self.index,0])
+            self.tip_direction = sign(self.tip_dat[self.index+1,0]-self.tip_dat[self.index,0])
+            '''Correcting y interceppt'''
+            self.corrected_pre_root_intercept = self.correct_c(self.pre_root_derivative, self.root_cutting_radius, self.pre_root_intercept, self.root_direction)
+            self.corrected_post_root_intercept = self.correct_c(self.post_root_derivative, self.root_cutting_radius, self.pre_root_intercept, self.root_direction)
+            self.corrected_pre_tip_intercept = self.correct_c(self.pre_tip_derivative, self.tip_cutting_radius, self.pre_tip_intercept, self.tip_direction)
+            self.corrected_post_tip_intercept = self.correct_c(self.post_tip_derivative, self.tip_cutting_radius, self.post_tip_intercept, self.tip_direction)
+            '''Computing offset line intercetion'''
+            self.corrected_tip_x = (self.corrected_pre_tip_intercept-self.corrected_post_tip_intercept)/(self.post_tip_derivative-self.pre_tip_derivative)
+            self.corrected_root_x = (self.corrected_pre_root_intercept-self.corrected_post_root_intercept)/(self.post_root_derivative-self.pre_root_derivative)
+            self.corrected_tip_y = self.post_tip_derivative*self.corrected_tip_x+self.corrected_post_tip_intercept
+            self.corrected_root_y = self.post_root_derivative*self.corrected_root_x+self.corrected_post_root_intercept
+            '''Adds to output array'''
+            self.updated_tip.append(array([self.corrected_tip_x,self.corrected_tip_y]))
+            self.updated_root.append(array([self.corrected_root_x,self.corrected_root_y]))
+        self.updated_root = array(self.updated_root)
+        self.updated_tip = array(self.updated_tip)
+        plt.plot(self.updated_root[:,0],self.updated_root[:,1])
+        plt.show()
+        plt.plot(self.updated_tip[:,0],self.updated_tip[:,1])
+        plt.show()
+
+
+        for self.index in range(0,len(self.new_root)):
+                if isnan(self.new_root[self.index][0]) or self.new_root[self.index][0]== NINF or self.new_root[self.index][0]== Inf:
+                    print("Case1")
+                    if self.index+1>self.new_root.shape[0]-1:
+                        self.new_root[self.index] = mean([self.new_root[self.index-1],self.new_root[0]],axis=0)
+                        #print(f"-----> {self.new_root[self.index]}")
+                    else:
+                        #print("Co-linear points found, results may vary, generaly a bad result")
+                        #print(f"Previous: {self.new_root[self.index],self.new_root[self.index-1],self.new_root[self.index+1]}")
+                        self.new_root[self.index] = mean([self.new_root[self.index-1],self.new_root[self.index+1]],axis=0)
+                        #print(f"Now: {self.new_root[self.index]}")
+
+                if isnan(self.new_tip[self.index][0]) or self.new_tip[self.index][0]== NINF or self.new_tip[self.index][0]== Inf:
+                    print("Case2")
+                    if self.index+1>self.new_tip.shape[0]-1:
+                        self.new_tip[self.index] = mean([self.new_tip[self.index-1],self.new_tip[0]],axis=0)
+                        #print(f"----> {self.new_tip[self.index]}")
+                    else:
+                        #print("Co-linear points found, results may vary, generaly a bad result")
+                        #print(f"Previous: {self.new_tip[self.index],self.new_root[self.index-1],self.new_root[self.index+1]}")
+                        self.new_tip[self.index] = mean([self.new_tip[self.index-1],self.new_tip[self.index+1]],axis=0)
+                        #print(f"Now: {self.new_tip[self.index]}")
+            print(self.new_tip)
+            print(self.new_root)
