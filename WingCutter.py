@@ -501,7 +501,7 @@ class GUI(Tk):
         self.p=0
         print("opened "+str("test"))
         self.output = open("test"+".txt","w")
-        self.output.write("G90\n M3\n G1 X0 Y0 A0 B0 F600\n")#Moves the wire to the correct starting location
+        self.output.write("G90\n M3\nG1 X0 Y0 A0 B0 F600\nG1 X0 Y-10 A0 B-10 F200\nG92 X0 Y0 A0 B0\n")#G90 set absolute positoning, M3 heat wire, G1 move to home, G1 Move down 10 mm, G92 Set current positon as home
         for self.wing_section in self.cutting_plan:
             if not isinstance(self.wing_section,(Wing)):#Moves wire to next column if return command is encountered
                 print(self.wing_section)

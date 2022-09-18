@@ -19,7 +19,8 @@ C_a = 0
 C_b = 0
 extracted_root = []
 extracted_tip = []
-for line in filtered[0:3]:
+for line in filtered:
+    #input(line)
     for a in line:
         if 'X' in a:
             C_x = float(a[1:])
