@@ -5,6 +5,7 @@ import os
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg, NavigationToolbar2Tk)
 from tkinter import *
+from tkinter import filedialog
 #from tkinter.ttk import *
 from OpenGL.GL import *
 from OpenGL.GLU import *
@@ -504,18 +505,18 @@ class GUI(Tk):
         for self.wing_section in self.cutting_plan:
             if not isinstance(self.wing_section,(Wing)):#Moves wire to next column if return command is encountered
                 print(self.wing_section)
-                self.output.write("G1 X"+str(self.p)+"A"+str(self.p)+" F200\n")
+                self.output.write("G1 X"+str(self.p)+" A"+str(self.p)+" F200\n")
                 self.output.write("G1 Y10 B10 F200\n")
-                self.output.write("G1 X"+str(self.wing_section[1])+"A"+str(self.wing_section[1])+"F600\n")
+                self.output.write("G1 X"+str(self.wing_section[1])+" A"+str(self.wing_section[1])+"F600\n")
                 self.p=self.wing_section[1]
             else:
                 self.rp, self.lp = self.cuttertools.slice(self.wing_section.root,self.wing_section.tip,600,int(self.x_offset_input.get()))
-                self.output.write("G1 Y"+str(self.lp[0,1])+"B"+str(self.rp[0,1])+" F200\n")
+                self.output.write("G1 Y"+str(self.lp[0,1])+" B"+str(self.rp[0,1])+" F200\n")
                 for self.index in range(len(self.lp)):
                     self.output.write("G1 X"+str(self.lp[self.index,0])+" Y"+str(self.lp[self.index,1])+" A"+str(self.rp[self.index,0])+" B"+str(self.rp[self.index,1])+" F200\n")
                 self.output.write("G1 X"+str(self.lp[0,0])+" Y"+str(self.lp[0,1])+" A"+str(self.rp[0,0])+" B"+str(self.rp[0,1])+" F200\n")
-                self.output.write("G1 X"+str(self.p)+"A"+str(self.p)+" F200\n")
-        self.end_command = "G1 X"+str(self.p)+"A"+str(self.p)+"F200\nG1 Y10 B10 \nM3\n G1 X0A0 F600\n" # returns the wire the the first point completing the countout cut
+                self.output.write("G1 X"+str(self.p)+" A"+str(self.p)+" F200\n")
+        self.end_command = "G1 X"+str(self.p)+" A"+str(self.p)+"F200\nG1 Y10 B10 \nM3\n G1 X0 A0 F600\n" # returns the wire the the first point completing the countout cut
         self.output.write(self.end_command)
         self.output.close()
         print("closed")
