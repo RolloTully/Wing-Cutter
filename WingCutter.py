@@ -494,7 +494,7 @@ class GUI(Tk):
             self.wings.append(Wing(self.final_root, self.final_tip,int(self.wing_span_input.get())))
             if self.mirror_mode_toggle.get():
                 print("mirrored")
-                self.wings.append(Wing(self.final_tip, self.final_root,int(self.wing_span_input.get())))
+                self.wings.append(Wing(self.final_root, self.final_tip,int(self.wing_span_input.get())))
     def Export(self):
         '''Exports path as Gcode'''
         self.cutting_plan = self.pack() #packs wings in to single cutting path

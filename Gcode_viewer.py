@@ -34,7 +34,7 @@ for line in filtered:
     extracted_tip.append([C_a, C_b,600])
 extracted_root = np.array(extracted_root)
 extracted_tip = np.array(extracted_tip)
-print(extracted_root[:,0])
+#print(extracted_root[:,0])
 ax.plot(extracted_root[:,0],extracted_root[:,1],extracted_root[:,2])
 ax.plot(extracted_tip[:,0],extracted_tip[:,1],extracted_tip[:,2])
 plt.show()
