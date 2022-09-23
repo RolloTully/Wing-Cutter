@@ -12,6 +12,7 @@ from OpenGL.GLU import *
 from OpenGL.GL.shaders import *
 from pyopengltk import OpenGLFrame
 from winsound import *
+import re
 class Wing():
     '''A struct to hold information about a particuar wing section'''
     def __init__(self, root, tip, span):
@@ -233,6 +234,7 @@ class CutterTools():
 class GUI(Tk):
     def __init__(self,parent):
         Tk.__init__(self, parent)
+        self.parser = re.compile("G[10]")
         self.parent = parent
         self.cuttertools = CutterTools()
         self.wings = []
@@ -378,6 +380,12 @@ class GUI(Tk):
         self.computed_canvas = FigureCanvasTkAgg(self.computed_planes_figure, self)
         self.computed_canvas.get_tk_widget().place(x=0,y=290)
 
+        """GCode Command View"""
+        self.gcode_figure = Figure(figsize=(4,4),dpi=100)
+        self.gcode_plot = self.gcode_figure.add_subplot(projection = '3d')
+        self.gcode_canvas = FigureCanvasTkAgg(self.gcode_figure, self)
+        self.gcode_canvas.get_tk_widget().place(x=500,y=330)
+
         """Wing listings"""
         #self.wing_list = Listbox(self)
         #self.wing_list.place(x=400,y=400)
@@ -497,29 +505,66 @@ class GUI(Tk):
                 self.wings.append(Wing(self.final_tip, self.final_root,int(self.wing_span_input.get())))
     def Export(self):
         '''Exports path as Gcode'''
+        self.cutter_commands = []
         self.cutting_plan = self.pack() #packs wings in to single cutting path
+        self.coding = ""
         self.p=0
         print("opened "+str("test"))
         self.output = open("test"+".txt","w")
-        self.output.write("G90\n M3\nG1 X0 Y0 A0 B0 F600\nG1 X0 Y-10 A0 B-10 F200\nG92 X0 Y0 A0 B0\n")#G90 set absolute positoning, M3 heat wire, G1 move to home, G1 Move down 10 mm, G92 Set current positon as home
+        self.coding+="G90\n M3\nG1 X0 Y0 A0 B0 F600\nG1 X0 Y-10 A0 B-10 F200\nG92 X0 Y0 A0 B0\n"#G90 set absolute positoning, M3 heat wire, G1 move to home, G1 Move down 10 mm, G92 Set current positon as home
         for self.wing_section in self.cutting_plan:
             if not isinstance(self.wing_section,(Wing)):#Moves wire to next column if return command is encountered
                 print(self.wing_section)
-                self.output.write("G1 X"+str(self.p)+" A"+str(self.p)+" F200\n")
-                self.output.write("G1 Y10 B10 F200\n")
-                self.output.write("G1 X"+str(self.wing_section[1])+" A"+str(self.wing_section[1])+"F600\n")
+                self.coding+="G1 X"+str(self.p)+" A"+str(self.p)+" F200\n"
+                self.coding+="G1 Y10 B10 F200\n"
+                self.coding+="G1 X"+str(self.wing_section[1])+" A"+str(self.wing_section[1])+"F600\n"
                 self.p=self.wing_section[1]
             else:
                 self.rp, self.lp = self.cuttertools.slice(self.wing_section.root,self.wing_section.tip,self.wing_section.span,int(self.x_offset_input.get()))
-                self.output.write("G1 Y"+str(self.lp[0,1])+" B"+str(self.rp[0,1])+" F200\n")
+                self.coding+="G1 Y"+str(self.lp[0,1])+" B"+str(self.rp[0,1])+" F200\n"
                 for self.index in range(len(self.lp)):
-                    self.output.write("G1 X"+str(self.lp[self.index,0])+" Y"+str(self.lp[self.index,1])+" A"+str(self.rp[self.index,0])+" B"+str(self.rp[self.index,1])+" F200\n")
-                self.output.write("G1 X"+str(self.lp[0,0])+" Y"+str(self.lp[0,1])+" A"+str(self.rp[0,0])+" B"+str(self.rp[0,1])+" F200\n")
-                self.output.write("G1 X"+str(self.p)+" A"+str(self.p)+" F200\n")
+                    self.coding+="G1 X"+str(self.lp[self.index,0])+" Y"+str(self.lp[self.index,1])+" A"+str(self.rp[self.index,0])+" B"+str(self.rp[self.index,1])+" F200\n"
+                self.coding+="G1 X"+str(self.lp[0,0])+" Y"+str(self.lp[0,1])+" A"+str(self.rp[0,0])+" B"+str(self.rp[0,1])+" F200\n"
+                self.coding+="G1 X"+str(self.p)+" A"+str(self.p)+" F200\n"
         self.end_command = "G1 X"+str(self.p)+" A"+str(self.p)+"F200\nG1 Y10 B10 \nM3\n G1 X0 A0 F600\n" # returns the wire the the first point completing the countout cut
-        self.output.write(self.end_command)
+        self.coding+=(self.end_command)
+        self.output.write(self.coding)
         self.output.close()
+
+        print("You have arrived here")
+        self.filtered = []
+        for self.line in self.coding.split("\n"):
+            self.q = self.parser.match(self.line)
+            if self.q is not None:
+                self.filtered.append(re.split('(?=[A-Z])',self.line.split("F")[0][3:].strip())[1:])
+
+        self.C_x = 0
+        self.C_y = 0
+        self.C_a = 0
+        self.C_b = 0
+        self.extracted_root = []
+        self.extracted_tip = []
+        for self.line in self.filtered:
+            print(self.line)
+            for self.a in self.line:
+                if 'X' in self.a:
+                    self.C_x = float(self.a[1:])
+                elif 'Y' in self.a:
+                    self.C_y = float(self.a[1:])
+                elif 'A' in self.a:
+                    self.C_a = float(self.a[1:])
+                elif 'B' in self.a:
+                    self.C_b = float(self.a[1:])
+            self.extracted_root.append([self.C_x, self.C_y,0])
+            self.extracted_tip.append([self.C_a, self.C_b,600])
+        self.extracted_root = array(self.extracted_root)
+        self.extracted_tip = array(self.extracted_tip)
+        print(self.extracted_root)
+        self.gcode_plot.plot(self.extracted_root[:,0],self.extracted_root[:,1],self.extracted_root[:,2])
+        self.gcode_plot.plot(self.extracted_tip[:,0],self.extracted_tip[:,1],self.extracted_tip[:,2])
+        plt.show()
         print("closed")
+
     def compute_geometry(self):
         self.generate_root_foil()
         self.generate_tip_foil()
