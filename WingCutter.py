@@ -494,7 +494,7 @@ class GUI(Tk):
             self.wings.append(Wing(self.final_root, self.final_tip,int(self.wing_span_input.get())))
             if self.mirror_mode_toggle.get():
                 print("mirrored")
-                self.wings.append(Wing(self.final_root, self.final_tip,int(self.wing_span_input.get())))
+                self.wings.append(Wing(self.final_tip, self.final_root,int(self.wing_span_input.get())))
     def Export(self):
         '''Exports path as Gcode'''
         self.cutting_plan = self.pack() #packs wings in to single cutting path
@@ -510,7 +510,7 @@ class GUI(Tk):
                 self.output.write("G1 X"+str(self.wing_section[1])+" A"+str(self.wing_section[1])+"F600\n")
                 self.p=self.wing_section[1]
             else:
-                self.rp, self.lp = self.cuttertools.slice(self.wing_section.root,self.wing_section.tip,600,int(self.x_offset_input.get()))
+                self.rp, self.lp = self.cuttertools.slice(self.wing_section.root,self.wing_section.tip,self.wing_section.span,int(self.x_offset_input.get()))
                 self.output.write("G1 Y"+str(self.lp[0,1])+" B"+str(self.rp[0,1])+" F200\n")
                 for self.index in range(len(self.lp)):
                     self.output.write("G1 X"+str(self.lp[self.index,0])+" Y"+str(self.lp[self.index,1])+" A"+str(self.rp[self.index,0])+" B"+str(self.rp[self.index,1])+" F200\n")
@@ -603,7 +603,7 @@ class GUI(Tk):
     def generate_tip_foil(self):
         if self.tip_foil_num.get() !="":
             self.tip_data = self.gen_naca(self.tip_foil_num.get())
-        self.true_tip_foil = self.cuttertools.generate_foil(self.tip_data,float(self.tip_alpha_input.get()),float(self.tip_twist_percentage_input.get()),float(self.tip_chord_input.get()))
+        self.true_tip_foil = self.cuttertools.generate_foil(self.tip_data,int(self.tip_alpha_input.get()),float(self.tip_twist_percentage_input.get()),float(self.tip_chord_input.get()))
         self.true_tip_plot.cla()
         self.true_tip_plot.plot(self.true_tip_foil[:,0],self.true_tip_foil[:,1])
         self.true_tip_canvas.draw()
