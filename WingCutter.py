@@ -509,6 +509,7 @@ class GUI(Tk):
         self.cutting_plan = self.pack() #packs wings in to single cutting path
         self.coding = ""
         self.p=0
+        self.gcode_plot.cla()
         print("opened "+str("test"))
         self.output = open("test"+".txt","w")
         self.coding+="G90\n M3\nG1 X0 Y0 A0 B0 F600\nG1 X0 Y-10 A0 B-10 F200\nG92 X0 Y0 A0 B0\n"#G90 set absolute positoning, M3 heat wire, G1 move to home, G1 Move down 10 mm, G92 Set current positon as home
