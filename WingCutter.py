@@ -345,7 +345,7 @@ class GUI(Tk):
         self.feed_rate_input.place(x=570,y=220)
         Label(self,text="Cutter Radius[mm]").place(x=420,y=240)
         self.cut_radius_input= Entry(self, width = 7)
-        self.cut_radius_input.insert(END,"0.65")
+        self.cut_radius_input.insert(END,"1.0")
         self.cut_radius_input.place(x=570,y=240)
 
         '''Generated Input figure'''
@@ -385,13 +385,6 @@ class GUI(Tk):
         self.gcode_plot = self.gcode_figure.add_subplot(projection = '3d')
         self.gcode_canvas = FigureCanvasTkAgg(self.gcode_figure, self)
         self.gcode_canvas.get_tk_widget().place(x=500,y=330)
-
-        """Wing listings"""
-        #self.wing_list = Listbox(self)
-        #self.wing_list.place(x=400,y=400)
-        #self.open_gl_frame = AppOgl(self, width = 700, height = 500)
-        #self.open_gl_frame.animate = 1
-        #self.open_gl_frame.place(x=430,y=360)
         self.mainloop()
 
     def resample(self, foil, samples):#refactored to used a fit point spline because linear inteprolaten is hot grabage that breaks everything
@@ -471,7 +464,7 @@ class GUI(Tk):
                 print("path beyond cutter capacity, this foil will not be cut")
                 pass
             elif (self.y_offset + self.section.bounding_box[1])+self.block_height>0: # Case2 The Wing will fit in the current column
-                if self.section.bounding_box[0] < self.new_x_offset:
+                if self.section.bounding_box[0] > self.new_x_offset:
                     self.new_x_offset = self.section.bounding_box[0]
                 self.section.root = self.section.root+array([self.x_offset, self.y_offset,0])
                 self.section.tip = self.section.tip+array([self.x_offset, self.y_offset,0])
@@ -538,7 +531,6 @@ class GUI(Tk):
             self.q = self.parser.match(self.line)
             if self.q is not None:
                 self.filtered.append(re.split('(?=[A-Z])',self.line.split("F")[0][3:].strip())[1:])
-
         self.C_x = 0
         self.C_y = 0
         self.C_a = 0
