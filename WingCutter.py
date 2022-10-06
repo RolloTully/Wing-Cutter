@@ -11,7 +11,7 @@ from OpenGL.GL import *
 from OpenGL.GLU import *
 from OpenGL.GL.shaders import *
 from pyopengltk import OpenGLFrame
-from winsound import *
+#from winsound import *
 import re
 class Wing():
     '''A struct to hold information about a particuar wing section'''
@@ -385,6 +385,12 @@ class GUI(Tk):
         self.gcode_plot = self.gcode_figure.add_subplot(projection = '3d')
         self.gcode_canvas = FigureCanvasTkAgg(self.gcode_figure, self)
         self.gcode_canvas.get_tk_widget().place(x=500,y=330)
+
+        """Foil Packing Parameters"""
+        self.vertical_clearance = 5  #mm
+        self.horizontal_clearance = 5 #mm
+        self.edge_clearance = 5 #mm
+
         self.mainloop()
 
     def resample(self, foil, samples):#refactored to used a fit point spline because linear inteprolaten is hot grabage that breaks everything
@@ -469,11 +475,11 @@ class GUI(Tk):
                 self.section.root = self.section.root+array([self.x_offset, self.y_offset,0])
                 self.section.tip = self.section.tip+array([self.x_offset, self.y_offset,0])
                 self.cutting_plan.append(self.section)
-                self.y_offset += (self.section.bounding_box[1]-10)
-            elif (self.y_offset + self.section.bounding_box[1]-10)+self.block_height<=0:# Case3 The Wing will not fit in the current column
+                self.y_offset += (self.section.bounding_box[1]-self.vertical_clearance)
+            elif (self.y_offset + self.section.bounding_box[1]-self.edge_clearance)+self.block_height<=0:# Case3 The Wing will not fit in the current column
                 if self.new_x_offset == 0:
                     self.new_x_offset = self.section.bounding_box[0]
-                self.x_offset += self.new_x_offset-10
+                self.x_offset += self.new_x_offset-self.horizontal_clearance
                 if self.section.bounding_box[0] < self.new_x_offset:
                     self.new_x_offset = self.section.bounding_box[0]
                 self.new_x_offset = 0
@@ -482,7 +488,7 @@ class GUI(Tk):
                 self.section.tip = self.section.tip+array([self.x_offset, self.y_offset,0])
                 self.cutting_plan.append(["return",self.x_offset])
                 self.cutting_plan.append(self.section)
-                self.y_offset += (self.section.bounding_box[1]-10)
+                self.y_offset += (self.section.bounding_box[1]-self.vertical_clearance)
         plt.show()
         for self.section in self.wings:
             print(self.section.bounding_box)
@@ -505,13 +511,13 @@ class GUI(Tk):
         self.gcode_plot.cla()
         print("opened "+str("test"))
         self.output = open("test"+".txt","w")
-        self.coding+="G90\n M3\nG1 X0 Y0 A0 B0 F600\nG1 X0 Y-10 A0 B-10 F200\nG92 X0 Y0 A0 B0\n"#G90 set absolute positoning, M3 heat wire, G1 move to home, G1 Move down 10 mm, G92 Set current positon as home
+        self.coding+="G90\n M3\nG1 X0 Y0 A0 B0 F200\nG1 X0 Y-10 A0 B-10 F200\nG92 X0 Y0 A0 B0\n"#G90 set absolute positoning, M3 heat wire, G1 move to home, G1 Move down 10 mm, G92 Set current positon as home
         for self.wing_section in self.cutting_plan:
             if not isinstance(self.wing_section,(Wing)):#Moves wire to next column if return command is encountered
                 print(self.wing_section)
                 self.coding+="G1 X"+str(self.p)+" A"+str(self.p)+" F200\n"
-                self.coding+="G1 Y10 B10 F200\n"
-                self.coding+="G1 X"+str(self.wing_section[1])+" A"+str(self.wing_section[1])+"F600\n"
+                self.coding+="G1 Y20 B20 F200\n"
+                self.coding+="G1 X"+str(self.wing_section[1])+" A"+str(self.wing_section[1])+"F200\n"
                 self.p=self.wing_section[1]
             else:
                 self.rp, self.lp = self.cuttertools.slice(self.wing_section.root,self.wing_section.tip,self.wing_section.span,int(self.x_offset_input.get()))
@@ -520,12 +526,10 @@ class GUI(Tk):
                     self.coding+="G1 X"+str(self.lp[self.index,0])+" Y"+str(self.lp[self.index,1])+" A"+str(self.rp[self.index,0])+" B"+str(self.rp[self.index,1])+" F200\n"
                 self.coding+="G1 X"+str(self.lp[0,0])+" Y"+str(self.lp[0,1])+" A"+str(self.rp[0,0])+" B"+str(self.rp[0,1])+" F200\n"
                 self.coding+="G1 X"+str(self.p)+" A"+str(self.p)+" F200\n"
-        self.end_command = "G1 X"+str(self.p)+" A"+str(self.p)+"F200\nG1 Y10 B10 \nM3\n G1 X0 A0 F600\n" # returns the wire the the first point completing the countout cut
+        self.end_command = "G1 X"+str(self.p)+" A"+str(self.p)+"F200\nG1 Y10 B10 \nM3\n G1 X0 A0 F200\n" # returns the wire the the first point completing the contour cut
         self.coding+=(self.end_command)
         self.output.write(self.coding)
         self.output.close()
-
-        print("You have arrived here")
         self.filtered = []
         for self.line in self.coding.split("\n"):
             self.q = self.parser.match(self.line)
