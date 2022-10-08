@@ -1,4 +1,4 @@
-from numpy import array, sin, cos, tan, arctan, hypot, sign, append, max, arctan2, sqrt, radians, around, zeros, unique, matmul, uint8, argmax, argmin, delete, dot, mean, arctan2, argmax, roll, absolute, pi, equal, empty, arange, isnan, NINF, Inf, r_, linspace, stack, concatenate, minimum, all
+from numpy import array, sin, cos, tan, float, dstack, where, take, arctan, hypot, sign, append, max, arctan2, sqrt, radians, around, zeros, unique, matmul, uint8, argmax, argmin, delete, dot, mean, arctan2, argmax, roll, absolute, pi, equal, empty, arange, isnan, NINF, Inf, r_, linspace, stack, concatenate, minimum, all
 from scipy import interpolate
 import matplotlib.pyplot as plt
 import os
@@ -23,6 +23,8 @@ class Wing():
         self.d_tip = None
         self.retain_border = False
         self.span = span
+        self.bounding_box = array([self.root.min(axis=0),self.tip.min(axis=0)]).min(axis=0)
+    def update(self):
         self.bounding_box = array([self.root.min(axis=0),self.tip.min(axis=0)]).min(axis=0)
 
 
@@ -240,6 +242,8 @@ class GUI(Tk):
         self.wings = []
         self.title("Wing Cutter")
         self.geometry("1200x900+20+20")
+        self.load_dxf_button = Button(self,text="Load DXF",command = self.load_dxf)
+        self.load_dxf_button.place(x=950,y=20)
         self.load_tip_button = Button(self,text="Load Tip .dat",command = self.load_tip_data)
         self.load_root_button = Button(self,text="Load Root .dat",command = self.load_root_data)
         self.load_tip_button.place(x=75,y=0)
@@ -309,10 +313,10 @@ class GUI(Tk):
         self.wing_Diheadral_input= Entry(self, width = 7)
         self.wing_Diheadral_input.insert(END,"0")
         self.wing_Diheadral_input.place(x=570,y=160)
-        Label(self,text="Number of copies").place(x=620,y=200)
+        Label(self,text="Number of copies").place(x=640,y=200)
         self.copies= Entry(self, width = 7)
         self.copies.insert(END,"1")
-        self.copies.place(x=725,y=200)
+        self.copies.place(x=750,y=200)
 
         '''NACA Foil Inputs'''
         Label(self,text="Tip Foil Number(4 Digit NACA)").place(x=620,y=0)
@@ -567,6 +571,7 @@ class GUI(Tk):
         self.generate_tip_foil()
         self.resampled_root_foil = self.resample(self.true_root_foil, 1000)
         self.resampled_tip_foil = self.resample(self.true_tip_foil, 1000)
+        self.minimise_bounding_box(self.resampled_tip_foil,self.resampled_root_foil)
         if self.adaptive_toggle.get():
             self.adjusted_root, self.adjusted_tip = self.cuttertools.fucking_magic(self.resampled_root_foil,self.resampled_tip_foil,float(self.feed_rate_input.get()),float(self.cut_radius_input.get()))
         else:
@@ -635,6 +640,56 @@ class GUI(Tk):
         self.tip_plot.cla()
         self.tip_plot.plot(self.foil_dat[:,0],self.foil_dat[:,1])
         self.tip_canvas.draw()
+
+    def minimise_bounding_box(self, tip, root):
+        '''Rotates the wing to minimise the used material'''
+        self.learing_rate = 1
+        self.tip, self.root = tip, root
+        self.delta_theta = 1
+        while self.delta_theta>0.01:
+
+            self.bounding_box = array([self.root.min(axis=0),self.tip.min(axis=0)]).min(axis=0)
+            self.initial_vol = self.bounding_box[0]*self.bounding_box[1]
+            print(self.delta_theta, self.bounding_box, self.initial_vol)
+            self.tip = self.cuttertools.rotate_data(self.tip,self.delta_theta, 0.25)
+            self.root = self.cuttertools.rotate_data(self.root,self.delta_theta, 0.25)
+            self.bounding_box = array([self.root.min(axis=0),self.tip.min(axis=0)]).min(axis=0)
+            self.new_vol = self.bounding_box[0]*self.bounding_box[1]
+            self.delta_volume = self.new_vol-self.initial_vol # if +v.e. the box is larger which is bad, is -v.e. the box is smaller which is good
+            self.delta_theta = self.delta_theta*-(self.delta_volume/10)
+
+
+
+        pass
+
+    def load_dxf(self):
+        self.foil_address = filedialog.askopenfilename()
+        self.raw = open(self.foil_address,'r').readlines()
+        '''Extracts relevant spline curves from DXF file'''
+        self.reading = False
+        self.output = []
+        for line in self.raw:
+            if line.startswith('AcDbSpline\n'):
+                self.reading = True
+            if line.startswith('ENDSEC\n'):
+                if self.reading:
+                    self.reading= False
+                    break
+            if self.reading:
+                self.output.append(line)
+        self.output = [element.strip() for element in self.output[1:]]
+        self.output = array(self.output)
+        '''Extracts coordiantes from spline curve entry'''
+        self.x_indecies = where(self.output == '10')[0]+1
+        self.y_indecies = where(self.output == '20')[0]+1
+        self.z_indecies = where(self.output == '30')[0]+1
+        self.x_coordinates = take(self.output, self.x_indecies)
+        self.y_coordinates = take(self.output, self.y_indecies)
+        self.z_coordinates = take(self.output, self.z_indecies)
+        '''Pairs up x and y cardinals'''
+        self.points = dstack((self.x_coordinates,self.y_coordinates))[0].astype(float)
+        self.root_data, self.tip_data = self.points, self.points
+
     def generate_root_foil(self):
         if self.root_foil_num.get() != "":
             self.root_data = self.gen_naca(self.root_foil_num.get())
