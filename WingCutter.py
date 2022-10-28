@@ -461,6 +461,24 @@ class GUI(Tk):
         '''if you want to update it please consult the notes'''
         self.block_height = float(self.foam_height.get())
         self.block_length = float(self.foam_length.get())
+
+        self.snap_points = np.array([[0,0]])
+        self.wings = Sorted(self.wings,key = lambda x: x.bounding_box[0]*x.bounding_box[1], reversed = True)
+        for self.section in self.wings:
+            self.snap_costs = np.sum(self.snap_points*np.array([2,1]))
+            self.mapping = np.argsort(self.snap_costs)
+            self.new_wing_mapping = self.wings[self.mapping[::-1]]
+            self.snap_cost_mapping = self.snap_points[self.mapping[::-1]]
+            for self.snap_point in self.snap_cost_mapping:
+                for self.section in self.new_wing_mapping:
+                    if self.snap_point[1]+self.section.bounding_box[1]<self.block_height:
+
+            for p,q in [self.snap_cost_mapping, self.new_wing_mapping]:
+                if p[1]+q[1]<self.block_height:
+                    '''
+
+
+
         self.x_offset = 0
         self.y_offset = 0
         self.cutting_plan = []
