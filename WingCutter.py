@@ -214,8 +214,12 @@ class CutterTools():
         if set_forward:
             self.diheadral_displacemnt = tan(radians(float(alpha_d)))*float(wing_span)
             self.angle_displacments = array([0,self.diheadral_displacemnt,0]).flatten()
-            self.swept_root = root-self.angle_displacments
-            self.swept_tip = tip
+            if alpha_s <=0:
+                self.swept_root = root-self.angle_displacments
+                self.swept_tip = tip
+            elif alpha_s > 0:
+                self.swept_root = root
+                self.swept_tip = tip+self.angle_displacments
             return self.swept_root, self.swept_tip
         if set_backward:
             self.sweep_displacment = float(root_chord) - float(tip_chord)
