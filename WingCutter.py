@@ -397,8 +397,12 @@ class GUI(Tk):
         self.foil_y = array(foil)[:,1]
         self.foil_x = r_[self.foil_x,self.foil_x[0]]
         self.foil_y = r_[self.foil_y,self.foil_y[0]]
+        print("--")
+        print(self.foil_y)
+        print("--")
         self.tck , self.u = interpolate.splprep([self.foil_x,self.foil_y],k=5,s=0.1,per=True)
         self.i_x, self.i_y = interpolate.splev(linspace(0,1,samples),self.tck)
+        print(self.i_x)
         self.resampled_foil = stack((self.i_x,self.i_y),axis=1)
         return self.resampled_foil
     def gen_naca(self, foil_num): #genrates 4 digit naca air foils
