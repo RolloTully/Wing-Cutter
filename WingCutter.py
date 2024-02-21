@@ -1,4 +1,4 @@
-from numpy import array, sin, cos, tan, arctan, hypot, sign, append, max, arctan2, sqrt, radians, around, zeros, unique, matmul, uint8, argmax, argmin, delete, dot, mean, arctan2, argmax, roll, absolute, pi, equal, empty, arange, isnan, NINF, Inf, r_, linspace, stack, concatenate, minimum, all
+from numpy import array, sin, cos, tan, float, dstack, where, take, arctan, hypot, sign, append, max, arctan2, sqrt, radians, around, zeros, unique, matmul, uint8, argmax, argmin, delete, dot, mean, arctan2, argmax, roll, absolute, pi, equal, empty, arange, isnan, NINF, Inf, r_, linspace, stack, concatenate, minimum, all
 from scipy import interpolate
 import matplotlib.pyplot as plt
 import os
@@ -11,7 +11,7 @@ from OpenGL.GL import *
 from OpenGL.GLU import *
 from OpenGL.GL.shaders import *
 from pyopengltk import OpenGLFrame
-from winsound import *
+#from winsound import *
 import re
 class Wing():
     '''A struct to hold information about a particuar wing section'''
@@ -23,6 +23,8 @@ class Wing():
         self.d_tip = None
         self.retain_border = False
         self.span = span
+        self.bounding_box = array([self.root.min(axis=0),self.tip.min(axis=0)]).min(axis=0)
+    def update(self):
         self.bounding_box = array([self.root.min(axis=0),self.tip.min(axis=0)]).min(axis=0)
 
 
@@ -244,6 +246,8 @@ class GUI(Tk):
         self.wings = []
         self.title("Wing Cutter")
         self.geometry("1200x900+20+20")
+        self.load_dxf_button = Button(self,text="Load DXF",command = self.load_dxf)
+        self.load_dxf_button.place(x=950,y=20)
         self.load_tip_button = Button(self,text="Load Tip .dat",command = self.load_tip_data)
         self.load_root_button = Button(self,text="Load Root .dat",command = self.load_root_data)
         self.load_tip_button.place(x=75,y=0)
@@ -313,10 +317,10 @@ class GUI(Tk):
         self.wing_Diheadral_input= Entry(self, width = 7)
         self.wing_Diheadral_input.insert(END,"0")
         self.wing_Diheadral_input.place(x=570,y=160)
-        Label(self,text="Number of copies").place(x=620,y=200)
+        Label(self,text="Number of copies").place(x=640,y=200)
         self.copies= Entry(self, width = 7)
         self.copies.insert(END,"1")
-        self.copies.place(x=725,y=200)
+        self.copies.place(x=750,y=200)
 
         '''NACA Foil Inputs'''
         Label(self,text="Tip Foil Number(4 Digit NACA)").place(x=620,y=0)
@@ -389,6 +393,12 @@ class GUI(Tk):
         self.gcode_plot = self.gcode_figure.add_subplot(projection = '3d')
         self.gcode_canvas = FigureCanvasTkAgg(self.gcode_figure, self)
         self.gcode_canvas.get_tk_widget().place(x=500,y=330)
+
+        """Foil Packing Parameters"""
+        self.vertical_clearance = 5  #mm
+        self.horizontal_clearance = 5 #mm
+        self.edge_clearance = 5 #mm
+
         self.mainloop()
 
     def resample(self, foil, samples):#refactored to used a fit point spline because linear inteprolaten is hot grabage that breaks everything
@@ -459,6 +469,24 @@ class GUI(Tk):
         '''if you want to update it please consult the notes'''
         self.block_height = float(self.foam_height.get())
         self.block_length = float(self.foam_length.get())
+
+        self.snap_points = np.array([[0,0]])
+        self.wings = Sorted(self.wings,key = lambda x: x.bounding_box[0]*x.bounding_box[1], reversed = True)
+        for self.section in self.wings:
+            self.snap_costs = np.sum(self.snap_points*np.array([2,1]))
+            self.mapping = np.argsort(self.snap_costs)
+            self.new_wing_mapping = self.wings[self.mapping[::-1]]
+            self.snap_cost_mapping = self.snap_points[self.mapping[::-1]]
+            for self.snap_point in self.snap_cost_mapping:
+                for self.section in self.new_wing_mapping:
+                    if self.snap_point[1]+self.section.bounding_box[1]<self.block_height:
+
+            for p,q in [self.snap_cost_mapping, self.new_wing_mapping]:
+                if p[1]+q[1]<self.block_height:
+                    '''
+
+
+
         self.x_offset = 0
         self.y_offset = 0
         self.cutting_plan = []
@@ -477,11 +505,11 @@ class GUI(Tk):
                 self.section.root = self.section.root+array([self.x_offset, self.y_offset,0])
                 self.section.tip = self.section.tip+array([self.x_offset, self.y_offset,0])
                 self.cutting_plan.append(self.section)
-                self.y_offset += (self.section.bounding_box[1]-10)
-            elif (self.y_offset + self.section.bounding_box[1]-10)+self.block_height<=0:# Case3 The Wing will not fit in the current column
+                self.y_offset += (self.section.bounding_box[1]-self.vertical_clearance)
+            elif (self.y_offset + self.section.bounding_box[1]-self.edge_clearance)+self.block_height<=0:# Case3 The Wing will not fit in the current column
                 if self.new_x_offset == 0:
                     self.new_x_offset = self.section.bounding_box[0]
-                self.x_offset += self.new_x_offset-10
+                self.x_offset += self.new_x_offset-self.horizontal_clearance
                 if self.section.bounding_box[0] < self.new_x_offset:
                     self.new_x_offset = self.section.bounding_box[0]
                 self.new_x_offset = 0
@@ -490,7 +518,7 @@ class GUI(Tk):
                 self.section.tip = self.section.tip+array([self.x_offset, self.y_offset,0])
                 self.cutting_plan.append(["return",self.x_offset])
                 self.cutting_plan.append(self.section)
-                self.y_offset += (self.section.bounding_box[1]-10)
+                self.y_offset += (self.section.bounding_box[1]-self.vertical_clearance)
         plt.show()
         for self.section in self.wings:
             print(self.section.bounding_box)
@@ -513,13 +541,13 @@ class GUI(Tk):
         self.gcode_plot.cla()
         print("opened "+str("test"))
         self.output = open("test"+".txt","w")
-        self.coding+="G90\n M3\nG1 X0 Y0 A0 B0 F600\nG1 X0 Y-10 A0 B-10 F200\nG92 X0 Y0 A0 B0\n"#G90 set absolute positoning, M3 heat wire, G1 move to home, G1 Move down 10 mm, G92 Set current positon as home
+        self.coding+="G90\n M3\nG1 X0 Y0 A0 B0 F200\nG1 X0 Y-10 A0 B-10 F200\nG92 X0 Y0 A0 B0\n"#G90 set absolute positoning, M3 heat wire, G1 move to home, G1 Move down 10 mm, G92 Set current positon as home
         for self.wing_section in self.cutting_plan:
             if not isinstance(self.wing_section,(Wing)):#Moves wire to next column if return command is encountered
                 print(self.wing_section)
                 self.coding+="G1 X"+str(self.p)+" A"+str(self.p)+" F200\n"
-                self.coding+="G1 Y10 B10 F200\n"
-                self.coding+="G1 X"+str(self.wing_section[1])+" A"+str(self.wing_section[1])+"F600\n"
+                self.coding+="G1 Y20 B20 F200\n"
+                self.coding+="G1 X"+str(self.wing_section[1])+" A"+str(self.wing_section[1])+"F200\n"
                 self.p=self.wing_section[1]
             else:
                 self.rp, self.lp = self.cuttertools.slice(self.wing_section.root,self.wing_section.tip,self.wing_section.span,int(self.x_offset_input.get()))
@@ -528,12 +556,10 @@ class GUI(Tk):
                     self.coding+="G1 X"+str(self.lp[self.index,0])+" Y"+str(self.lp[self.index,1])+" A"+str(self.rp[self.index,0])+" B"+str(self.rp[self.index,1])+" F200\n"
                 self.coding+="G1 X"+str(self.lp[0,0])+" Y"+str(self.lp[0,1])+" A"+str(self.rp[0,0])+" B"+str(self.rp[0,1])+" F200\n"
                 self.coding+="G1 X"+str(self.p)+" A"+str(self.p)+" F200\n"
-        self.end_command = "G1 X"+str(self.p)+" A"+str(self.p)+"F200\nG1 Y10 B10 \nM3\n G1 X0 A0 F600\n" # returns the wire the the first point completing the countout cut
+        self.end_command = "G1 X"+str(self.p)+" A"+str(self.p)+"F200\nG1 Y10 B10 \nM3\n G1 X0 A0 F200\n" # returns the wire the the first point completing the contour cut
         self.coding+=(self.end_command)
         self.output.write(self.coding)
         self.output.close()
-
-        print("You have arrived here")
         self.filtered = []
         for self.line in self.coding.split("\n"):
             self.q = self.parser.match(self.line)
@@ -571,6 +597,7 @@ class GUI(Tk):
         self.generate_tip_foil()
         self.resampled_root_foil = self.resample(self.true_root_foil, 1000)
         self.resampled_tip_foil = self.resample(self.true_tip_foil, 1000)
+        self.minimise_bounding_box(self.resampled_tip_foil,self.resampled_root_foil)
         if self.adaptive_toggle.get():
             self.adjusted_root, self.adjusted_tip = self.cuttertools.fucking_magic(self.resampled_root_foil,self.resampled_tip_foil,float(self.feed_rate_input.get()),float(self.cut_radius_input.get()))
         else:
@@ -639,6 +666,56 @@ class GUI(Tk):
         self.tip_plot.cla()
         self.tip_plot.plot(self.foil_dat[:,0],self.foil_dat[:,1])
         self.tip_canvas.draw()
+
+    def minimise_bounding_box(self, tip, root):
+        '''Rotates the wing to minimise the used material'''
+        self.learing_rate = 1
+        self.tip, self.root = tip, root
+        self.delta_theta = 1
+        while self.delta_theta>0.01:
+
+            self.bounding_box = array([self.root.min(axis=0),self.tip.min(axis=0)]).min(axis=0)
+            self.initial_vol = self.bounding_box[0]*self.bounding_box[1]
+            print(self.delta_theta, self.bounding_box, self.initial_vol)
+            self.tip = self.cuttertools.rotate_data(self.tip,self.delta_theta, 0.25)
+            self.root = self.cuttertools.rotate_data(self.root,self.delta_theta, 0.25)
+            self.bounding_box = array([self.root.min(axis=0),self.tip.min(axis=0)]).min(axis=0)
+            self.new_vol = self.bounding_box[0]*self.bounding_box[1]
+            self.delta_volume = self.new_vol-self.initial_vol # if +v.e. the box is larger which is bad, is -v.e. the box is smaller which is good
+            self.delta_theta = self.delta_theta*-(self.delta_volume/10)
+
+
+
+        pass
+
+    def load_dxf(self):
+        self.foil_address = filedialog.askopenfilename()
+        self.raw = open(self.foil_address,'r').readlines()
+        '''Extracts relevant spline curves from DXF file'''
+        self.reading = False
+        self.output = []
+        for line in self.raw:
+            if line.startswith('AcDbSpline\n'):
+                self.reading = True
+            if line.startswith('ENDSEC\n'):
+                if self.reading:
+                    self.reading= False
+                    break
+            if self.reading:
+                self.output.append(line)
+        self.output = [element.strip() for element in self.output[1:]]
+        self.output = array(self.output)
+        '''Extracts coordiantes from spline curve entry'''
+        self.x_indecies = where(self.output == '10')[0]+1
+        self.y_indecies = where(self.output == '20')[0]+1
+        self.z_indecies = where(self.output == '30')[0]+1
+        self.x_coordinates = take(self.output, self.x_indecies)
+        self.y_coordinates = take(self.output, self.y_indecies)
+        self.z_coordinates = take(self.output, self.z_indecies)
+        '''Pairs up x and y cardinals'''
+        self.points = dstack((self.x_coordinates,self.y_coordinates))[0].astype(float)
+        self.root_data, self.tip_data = self.points, self.points
+
     def generate_root_foil(self):
         if self.root_foil_num.get() != "":
             self.root_data = self.gen_naca(self.root_foil_num.get())
